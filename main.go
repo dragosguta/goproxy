@@ -83,7 +83,7 @@ func init() {
 	endpoint = getEnv("URL")
 	poolID = getEnv("POOL_ID")
 	clientID = getEnv("CLIENT_ID")
-	region = getEnv("REGION")
+	region = getEnv("AWS_REGION")
 
 	config := &CognitoAppClientConfig{
 		Region:   region,
