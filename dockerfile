@@ -1,19 +1,27 @@
-# iron/go:dev is the alpine image with the go tools added
-FROM iron/go:dev
-WORKDIR /app
+FROM golang:1.12.6-alpine
 
-ENV SRC=/go/src/github.com/dragosguta/goproxy
+# Install git
+RUN apk update && apk add git
 
-# Add the source code:
-ADD . $SRC
+WORKDIR /go/src/app
 
-# Build it:
-RUN go get github.com/aws/aws-sdk-go/aws \
- github.com/dgrijalva/jwt-go \
- github.com/lestrrat-go/jwx/jwk
+COPY . .
 
-RUN cd $SRC; go build -o goproxy; cp goproxy /app/
+RUN go get -v ./...
+RUN go build -o goproxy
 
-EXPOSE 1330
+# Use a smaller alpine image
+FROM alpine:latest
 
-ENTRYPOINT ["./goproxy"]
+RUN apk update \
+  && apk upgrade \
+  && apk add --no-cache \
+  ca-certificates \
+  && update-ca-certificates 2>/dev/null || true
+
+WORKDIR /home
+
+# Copy the binary file from the first image
+COPY --from=0 /go/src/app/goproxy .
+
+CMD ["./goproxy"]

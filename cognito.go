@@ -140,9 +140,22 @@ func (c *CognitoAppClient) authenticate(token string) (User, error) {
 		})
 	}
 
-	return User{
+	user := User{
 		authenticated: true,
 		claims:        validatedToken.Claims,
 		attributes:    attributes,
-	}, nil
+	}
+
+	if !user.attributes.Enabled {
+		log.Printf("user: %s is disabled", user.attributes.Username)
+		user.authenticated = false
+	}
+
+	// user status: UNCONFIRMED | CONFIRMED | ARCHIVED | COMPROMISED | UNKNOWN | RESET_REQUIRED | FORCE_CHANGE_PASSWORD
+	if user.attributes.Status != "CONFIRMED" {
+		log.Printf("user: %s is not in a CONFIRMED state", user.attributes.Username)
+		user.authenticated = false
+	}
+
+	return user, nil
 }
