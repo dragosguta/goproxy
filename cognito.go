@@ -11,13 +11,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
-// User represented by the parsed JWT
-type User struct {
-	isAuthenticated       bool
-	claims                jwt.Claims
-	cognitoUserAttributes *cognitoidentityprovider.AdminGetUserOutput
-}
-
 // CognitoAppClient is an interface for working with AWS Cognito
 type CognitoAppClient struct {
 	Region           string
@@ -107,17 +100,17 @@ func (c *CognitoAppClient) getWellKnownJWTKs() error {
 func (c *CognitoAppClient) authenticate(token string) (User, error) {
 	parsedToken, err := parseJWT(token, c.WellKnownJWKs)
 	if err != nil {
-		return User{isAuthenticated: false}, err
+		return User{authenticated: false}, err
 	}
 
 	validatedToken, err := validateJWT(parsedToken, c.ClientID)
 	if err != nil {
-		return User{isAuthenticated: false}, err
+		return User{authenticated: false}, err
 	}
 
 	username := validatedToken.Claims.(jwt.MapClaims)["username"].(string)
 	if username == "" {
-		return User{isAuthenticated: false}, err
+		return User{authenticated: false}, err
 	}
 
 	parameters := &cognitoidentityprovider.AdminGetUserInput{
@@ -129,12 +122,27 @@ func (c *CognitoAppClient) authenticate(token string) (User, error) {
 
 	err = req.Send()
 	if err != nil {
-		return User{isAuthenticated: false}, err
+		return User{authenticated: false}, err
+	}
+
+	attributes := UserAttributes{
+		Enabled:          *resp.Enabled,
+		CreatedDate:      *resp.UserCreateDate,
+		LastModifiedDate: *resp.UserLastModifiedDate,
+		Username:         *resp.Username,
+		Status:           *resp.UserStatus,
+	}
+
+	for _, value := range resp.UserAttributes {
+		attributes.Attributes = append(attributes.Attributes, UserAttributeField{
+			Name:  ToLowerCamel(*value.Name),
+			Value: *value.Value,
+		})
 	}
 
 	return User{
-		isAuthenticated:       true,
-		claims:                validatedToken.Claims,
-		cognitoUserAttributes: resp,
+		authenticated: true,
+		claims:        validatedToken.Claims,
+		attributes:    attributes,
 	}, nil
 }

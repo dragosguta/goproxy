@@ -19,6 +19,7 @@ _obj
 _test
 _testmain.go
 .env
+sso
 
 /VERSION.cache
 /bin/

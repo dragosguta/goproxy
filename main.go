@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -32,28 +33,35 @@ func handleRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	token := req.Header.Get("Authorization")
-
-	if token == "" {
+	authorizationHeader := req.Header.Get("Authorization")
+	if authorizationHeader == "" {
 		log.Println("no authorization header present in request")
 		proxyErrorResponse(http.StatusUnauthorized, "Unauthorized", res, start)
 		return
 	}
 
-	user, err := authClient.authenticate(token)
+	bearerToken := strings.Split(authorizationHeader, " ")
+	if len(bearerToken) != 2 {
+		log.Println("malformed authorization header present in request")
+		proxyErrorResponse(http.StatusUnauthorized, "Unauthorized", res, start)
+		return
+	}
+
+	user, err := authClient.authenticate(bearerToken[1])
 	if err != nil {
 		log.Println(err)
 		proxyErrorResponse(http.StatusUnauthorized, "Unauthorized", res, start)
 		return
 	}
 
-	if user.isAuthenticated == false {
+	if user.authenticated == false {
 		log.Println("invalid token")
 		proxyErrorResponse(http.StatusUnauthorized, "Unauthorized", res, start)
 		return
 	}
 
-	formattedUserAttributes, err := json.Marshal(user.cognitoUserAttributes)
+	formattedUserAttributes, err := json.Marshal(user.attributes)
+	log.Println(string(formattedUserAttributes))
 	if err != nil {
 		log.Println(err)
 		proxyErrorResponse(http.StatusInternalServerError, "Internal server error", res, start)
