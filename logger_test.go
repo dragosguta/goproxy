@@ -41,15 +41,10 @@ func TestLogIncoming(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "test_token")
 
-	jsonLogItem, err := logIncoming(req)
-
-	if err != nil {
-		t.Log(err)
-		t.Fail()
-	}
+	jsonLogItem := logRequest(req)
 
 	item := incomingRequestLogItem{}
-	err = json.Unmarshal([]byte(jsonLogItem), &item)
+	err := json.Unmarshal([]byte(jsonLogItem), &item)
 
 	if err != nil {
 		t.Log(err)
@@ -60,15 +55,8 @@ func TestLogIncoming(t *testing.T) {
 		t.Fail()
 	}
 
-	if item.Path == "" {
-		t.Fail()
-	}
-
 	if item.Headers == nil {
 		t.Fail()
 	}
 
-	if item.Timestamp == 0 {
-		t.Fail()
-	}
 }
