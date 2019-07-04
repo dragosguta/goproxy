@@ -22,16 +22,24 @@ func proxyErrorResponse(status int, message string, res http.ResponseWriter, sta
 	res.Header().Set("Access-Control-Allow-Origin", "*")
 	res.WriteHeader(status)
 	json.NewEncoder(res).Encode(map[string]interface{}{"error": message, "data": nil})
-	log.Printf("elasped time %s", time.Since(start))
+	log.Printf("elapsed time: %s", time.Since(start))
 }
 
 func handleRequest(res http.ResponseWriter, req *http.Request) {
 	start := time.Now()
-	if _, err := logIncoming(req); err != nil {
-		log.Println(err)
+	valid, err := validJSONRequestBody(req)
+
+	if err != nil {
 		proxyErrorResponse(http.StatusInternalServerError, "Internal server error", res, start)
 		return
 	}
+
+	if !valid {
+		proxyErrorResponse(http.StatusBadRequest, "Body must be valid JSON", res, start)
+		return
+	}
+
+	logRequest(req)
 
 	authorizationHeader := req.Header.Get("Authorization")
 	if authorizationHeader == "" {
@@ -76,14 +84,15 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	url, _ := url.Parse(target)
 
 	proxy := httputil.NewSingleHostReverseProxy(url)
+	proxy.Transport = &transport{http.DefaultTransport}
 
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = url.Host
 
-	log.Printf("elasped time %s", time.Since(start))
 	proxy.ServeHTTP(res, req)
+	log.Printf("elapsed time: %s", time.Since(start))
 }
 
 func init() {
@@ -110,7 +119,8 @@ func init() {
 }
 
 func main() {
-	http.HandleFunc("/", handleRequest)
+	final := http.HandlerFunc(handleRequest)
+	http.Handle("/", Gzip(final))
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		panic(err)
 	}
