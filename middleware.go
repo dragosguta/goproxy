@@ -102,6 +102,7 @@ var AuthenticationMiddleware = func(f http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		log.Printf("identified user for request as: %s", user.attributes.Username)
 		formattedUserAttributes, err := json.Marshal(user.attributes)
 		if err != nil {
 			log.Println(err)
